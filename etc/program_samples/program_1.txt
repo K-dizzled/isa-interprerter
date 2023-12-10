@@ -1,0 +1,6 @@
+r2 = 1488
+store REL r2 #r1
+load REL #r1 r3
+r4 = 9
+r3 = r3 + r4
+store ACQ r3 #r5

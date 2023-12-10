@@ -1,0 +1,9 @@
+[package]
+name = "isa_interpreter"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+pretty_assertions = "1.4.0"
+dot-writer = "0.1.3"
+clap = { version = "4.2.1", features = ["cargo"] }

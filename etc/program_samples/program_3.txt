@@ -1,0 +1,4 @@
+r1 = 69
+store RLX r1 #r2
+r3 = 9
+r1 := fai RLX #r2 r3

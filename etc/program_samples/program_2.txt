@@ -1,0 +1,4 @@
+r1 = 1488
+r2 = 28
+store ACQ r1 #r5
+store ACQ r2 #r6
