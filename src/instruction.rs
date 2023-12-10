@@ -181,35 +181,6 @@ impl Instruction {
             _ => false,
         }
     }
-
-    pub fn to_dot(&self) -> String {
-        match self {
-            Instruction::AssignConst(dest, value) => {
-                format!("R{}e{}", dest, value)
-            }
-            Instruction::AssignOperation(dest, lhs, op, rhs) => {
-                format!("R{}e{}{}{}", dest, lhs, op, rhs)
-            }
-            Instruction::ConditionalJump(cond, label) => {
-                format!("if {} goto {}", cond, label)
-            }
-            Instruction::Load(mode, dest, addr) => {
-                format!("{} load {} {}", dest, mode, addr)
-            }
-            Instruction::Store(mode, addr, value) => {
-                format!("store {} {} {}", mode, addr, value)
-            }
-            Instruction::Cas(dest, mode, addr, old, new) => {
-                format!("cas {} {} {} {} {}", dest, mode, addr, old, new)
-            }
-            Instruction::Fai(dest, mode, addr, value) => {
-                format!("fai {} {} {} {}", dest, mode, addr, value)
-            }
-            Instruction::Fence(mode) => {
-                format!("fence {}", mode)
-            }
-        }
-    }
 }
 
 impl Display for Instruction {

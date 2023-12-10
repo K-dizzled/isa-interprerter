@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::prelude::*;
 use std::rc::Rc;
+use std::process::Command;
 
 pub struct Registers {
     pub registers: HashMap<usize, Memory>,
@@ -47,6 +48,8 @@ pub struct TSO {
     pub dependency_graph: DependencyGraph,
     pub registers: Registers,
     pub is_pso: bool,
+    pub remove_queue: Vec<Rc<RefCell<InstructionNode>>>,
+    pub label_map: HashMap<String, bool>,
 }
 
 impl TSO {
@@ -67,6 +70,8 @@ impl TSO {
             dependency_graph,
             registers,
             is_pso,
+            remove_queue: Vec::new(),
+            label_map: HashMap::new(),
         }
     }
 
@@ -79,7 +84,28 @@ impl TSO {
         let mut file = File::create(filename).expect("Unable to create file");
         file.write_all(file_content.as_bytes())
             .expect("Unable to write data");
+
+        let _ = Command::new("dot")
+            .arg("-Tpng")
+            .arg(filename)
+            .arg("-o")
+            .arg(filename.replace(".dot", ".png"))
+            .output();
     }
+
+    pub fn prepare_for_delete(&mut self, node: Rc<RefCell<InstructionNode>>) {
+        let label = match node.borrow_mut().instruction.clone() {
+            NodeType::Instruction(labeled_instruction) => labeled_instruction.label.clone(),
+            NodeType::Propagate(Propagate {
+                associated_write, ..
+            }) => associated_write.label.clone(),
+        };
+        self.remove_queue.push(node);
+        if let Some(label) = label {
+            self.label_map.insert(label, true);
+        }
+    }
+
 
     pub fn exec_instruction(&mut self, instruction_node: Rc<RefCell<InstructionNode>>) {
         let instruction: NodeType = instruction_node.borrow_mut().instruction.clone();
@@ -92,6 +118,7 @@ impl TSO {
         match instruction.clone() {
             NodeType::Propagate(Propagate { .. }) => {
                 self.memory_subsystem.propagate(thread_id);
+                self.prepare_for_delete(instruction_node.clone());
                 self.dependency_graph
                     .remove_node(instruction_node.clone(), None, self.is_pso);
             }
@@ -101,6 +128,7 @@ impl TSO {
             {
                 Instruction::AssignConst(Reference::Register(reg), value) => {
                     self.registers.store(reg.as_str(), value, thread_id);
+                    self.prepare_for_delete(instruction_node.clone());
                     self.dependency_graph
                         .remove_node(instruction_node.clone(), None, self.is_pso);
                 }
@@ -115,12 +143,14 @@ impl TSO {
 
                     let result = operation.apply(value1, value2);
                     self.registers.store(reg.as_str(), result, thread_id);
+                    self.prepare_for_delete(instruction_node.clone());
                     self.dependency_graph
                         .remove_node(instruction_node.clone(), None, self.is_pso);
                 }
                 Instruction::Load(_, Reference::Memory(mem), Reference::Register(reg)) => {
                     let value = self.memory_subsystem.load(mem.as_str(), thread_id);
                     self.registers.store(reg.as_str(), value, thread_id);
+                    self.prepare_for_delete(instruction_node.clone());
                     self.dependency_graph
                         .remove_node(instruction_node.clone(), None, self.is_pso);
                 }
@@ -131,6 +161,7 @@ impl TSO {
                         labeled_instruction.instruction.clone()
                     {
                         let prop = (labeled_instruction.clone(), mem_ref.clone());
+                        self.prepare_for_delete(instruction_node.clone());
                         self.dependency_graph.remove_node(
                             instruction_node.clone(),
                             Some(prop),
@@ -160,6 +191,7 @@ impl TSO {
                             labeled_instruction.instruction.clone()
                         {
                             let prop = (labeled_instruction.clone(), mem_ref.clone());
+                            self.prepare_for_delete(instruction_node.clone());
                             self.dependency_graph.remove_node(
                                 instruction_node.clone(),
                                 Some(prop),
@@ -196,6 +228,7 @@ impl TSO {
                         labeled_instruction.instruction.clone()
                     {
                         let prop = (labeled_instruction.clone(), mem_ref.clone());
+                        self.prepare_for_delete(instruction_node.clone());
                         self.dependency_graph.remove_node(
                             instruction_node.clone(),
                             Some(prop),
@@ -206,12 +239,13 @@ impl TSO {
                     }
                 }
                 Instruction::Fence(_) => {
+                    self.prepare_for_delete(instruction_node.clone());
                     self.dependency_graph
                         .remove_node(instruction_node.clone(), None, self.is_pso);
                 },
                 // Instruction::ConditionalJump(Reference::Register(reg), label) => {
                 //     let value = self.registers.load(reg.as_str(), thread_id);
-                //
+                    
                 // },
                 _ => {
                     panic!("Instruction not supported");

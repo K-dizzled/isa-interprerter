@@ -112,6 +112,7 @@ impl InstructionNode {
         {
             return;
         }
+        // println!("Adding dependency from {} to {}", from.borrow().instruction.id(), to.borrow().instruction.id());
         from.borrow_mut().depends_on.push(to.clone());
         to.borrow_mut().depends_on_me.push(from.clone());
     }
@@ -313,6 +314,7 @@ impl DependencyGraph {
         self.nodes.retain(|n| !Rc::ptr_eq(n, &node));
 
         if let Some((instr, to_loc)) = propagate {
+            // println!("Propagating {:?}", instr);
             let propagate_node = self.add_propagate(instr.clone(), to_loc.clone());
 
             // Add dependencies from fences
@@ -344,9 +346,9 @@ impl DependencyGraph {
                 }) = other_node
                 {
                     if pso {
-                        (*other_loc) == to_loc && labeled_instr.thread_id == instr.thread_id
+                        (*other_loc) == to_loc && labeled_instr.thread_id == instr.thread_id && labeled_instr.line_index != instr.line_index
                     } else {
-                        labeled_instr.thread_id == instr.thread_id
+                        labeled_instr.thread_id == instr.thread_id && labeled_instr.line_index != instr.line_index
                     }
                 } else {
                     false
@@ -355,10 +357,6 @@ impl DependencyGraph {
 
             for depended_node in depended_nodes {
                 InstructionNode::add_dependency(propagate_node.clone(), depended_node.clone());
-                // propagate_node
-                //     .borrow_mut()
-                //     .depends_on
-                //     .push(depended_node.clone());
             }
         }
     }
@@ -387,7 +385,6 @@ impl DependencyGraph {
             }
 
             for thread_id in threads {
-                // println!("Thread #{}", thread_id);
                 let mut cluster = digraph.cluster();
                 cluster.set_color(get_color());
                 cluster
@@ -398,8 +395,8 @@ impl DependencyGraph {
                 for node in &self.nodes {
                     if node.borrow().instruction.thread_id() == thread_id {
                         let node_label = node.borrow().instruction.to_dot();
+                        cluster.node_named(node_label.as_str());
                         for dependency in &node.borrow().depends_on {
-                            // println!("{} -> {}", node_label, dependency.borrow().instruction.to_dot());
                             let dependency_label = dependency.borrow().instruction.to_dot();
                             cluster.edge(node_label.as_str(), dependency_label.as_str());
                         }
@@ -407,43 +404,6 @@ impl DependencyGraph {
                 }
             }
         }
-
-        // {
-        //     let mut writer = DotWriter::from(&mut output_bytes);
-        //     writer.set_pretty_print(false);
-        //     let mut digraph = writer.digraph();
-        //     {
-        //         let mut cluster = digraph.cluster();
-        //         cluster.set_style(Style::Filled);
-        //         cluster.set_color(Color::LightGrey);
-        //         cluster
-        //             .node_attributes()
-        //             .set_style(Style::Filled)
-        //             .set_color(Color::White);
-        //         cluster.edge("a0", "a1").edge("a2").edge("a3");
-        //         cluster.set_label("process #1");
-        //         // cluster goes out of scope here to write closing bracket
-        //     }
-        //     {
-        //         let mut cluster = digraph.cluster();
-        //         cluster.node_attributes().set_style(Style::Filled);
-        //         cluster.edge("b0", "b1").edge("b2").edge("b3");
-        //         cluster.set_label("process #2");
-        //         cluster.set_color(Color::Blue);
-        //         // cluster goes out of scope here to write closing bracket
-        //     }
-        //     digraph.edge("start", "a0");
-        //     digraph.edge("start", "b0");
-        //     digraph.edge("a1", "b3");
-        //     digraph.edge("b2", "a3");
-        //     digraph.edge("a3", "a0");
-        //     digraph.edge("a3", "end");
-        //     digraph.edge("b3", "end");
-        //     digraph.node_named("start").set_shape(Shape::Mdiamond);
-        //     digraph.node_named("end").set_shape(Shape::Msquare);
-        //     // digraph goes out of scope here to write closing bracket
-        //     // then writer goes out of scope here to free up output_bytes for reading
-        // }
         String::from_utf8(output_bytes).unwrap()
     }
 }
