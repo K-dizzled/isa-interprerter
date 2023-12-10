@@ -1,10 +1,10 @@
 use crate::instruction::{Instruction, LabeledInstruction, MemoryAccessMode, Reference};
 use dot_writer::{Attributes, Color, DotWriter, Style};
+use rand::Rng;
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::fmt::Display;
 use std::rc::Rc;
-use rand::Rng;
 
 type PropagateId = String;
 
@@ -51,13 +51,24 @@ impl NodeType {
     pub fn to_dot(&self) -> String {
         match self {
             Self::Instruction(instruction) => {
-                format!("T{}Xinstr{}", instruction.thread_id.to_string(), instruction.line_index.to_string())
+                format!(
+                    "T{}Xinstr{}",
+                    instruction.thread_id.to_string(),
+                    instruction.line_index.to_string()
+                )
             }
             Self::Propagate(propagate) => format!(
                 "T{}Xprop{}",
                 propagate.associated_write.thread_id.to_string(),
                 propagate.associated_write.line_index.to_string()
             ),
+        }
+    }
+
+    pub fn label(&self) -> Option<String> {
+        match self {
+            Self::Instruction(instruction) => instruction.label.clone(),
+            Self::Propagate(propagate) => propagate.associated_write.label.clone(),
         }
     }
 }
@@ -125,6 +136,15 @@ pub struct DependencyGraph {
 impl DependencyGraph {
     pub fn new() -> Self {
         Self { nodes: Vec::new() }
+    }
+
+    pub fn add_some_node(&mut self, node: NodeType) {
+        let node = Rc::new(RefCell::new(InstructionNode {
+            instruction: node,
+            depends_on: Vec::new(),
+            depends_on_me: Vec::new(),
+        }));
+        self.nodes.push(node);
     }
 
     pub fn add_propagate(
@@ -346,9 +366,12 @@ impl DependencyGraph {
                 }) = other_node
                 {
                     if pso {
-                        (*other_loc) == to_loc && labeled_instr.thread_id == instr.thread_id && labeled_instr.line_index != instr.line_index
+                        (*other_loc) == to_loc
+                            && labeled_instr.thread_id == instr.thread_id
+                            && labeled_instr.line_index != instr.line_index
                     } else {
-                        labeled_instr.thread_id == instr.thread_id && labeled_instr.line_index != instr.line_index
+                        labeled_instr.thread_id == instr.thread_id
+                            && labeled_instr.line_index != instr.line_index
                     }
                 } else {
                     false

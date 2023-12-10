@@ -6,8 +6,8 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::prelude::*;
-use std::rc::Rc;
 use std::process::Command;
+use std::rc::Rc;
 
 pub struct Registers {
     pub registers: HashMap<usize, Memory>,
@@ -106,6 +106,22 @@ impl TSO {
         }
     }
 
+    pub fn revert_to_label(&mut self, label: String) {
+        if self.label_map.contains_key(&label) && self.label_map[&label] {
+            while let Some(node) = self.remove_queue.pop() {
+                let instruction: NodeType = node.borrow_mut().instruction.clone();
+                self.dependency_graph.add_some_node(instruction.clone());
+
+                if let Some(inactive_label) = instruction.label() {
+                    self.label_map.insert(inactive_label.clone(), false);
+                    if inactive_label == label {
+                        break;
+                    }
+                }
+            }
+            self.dependency_graph.build_dependencies();
+        }
+    }
 
     pub fn exec_instruction(&mut self, instruction_node: Rc<RefCell<InstructionNode>>) {
         let instruction: NodeType = instruction_node.borrow_mut().instruction.clone();
@@ -242,11 +258,20 @@ impl TSO {
                     self.prepare_for_delete(instruction_node.clone());
                     self.dependency_graph
                         .remove_node(instruction_node.clone(), None, self.is_pso);
-                },
-                // Instruction::ConditionalJump(Reference::Register(reg), label) => {
-                //     let value = self.registers.load(reg.as_str(), thread_id);
-                    
-                // },
+                }
+                Instruction::ConditionalJump(Reference::Register(reg), label) => {
+                    let value = self.registers.load(reg.as_str(), thread_id);
+                    if value == 0 {
+                        self.revert_to_label(label);
+                    } else {
+                        self.prepare_for_delete(instruction_node.clone());
+                        self.dependency_graph.remove_node(
+                            instruction_node.clone(),
+                            None,
+                            self.is_pso,
+                        );
+                    }
+                }
                 _ => {
                     panic!("Instruction not supported");
                 }
