@@ -1,0 +1,2 @@
+r2 = 1488
+store REL r2 #r1

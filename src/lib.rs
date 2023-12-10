@@ -48,7 +48,10 @@ impl InterpretorSC {
                 println!("{}", self.system.memory_subsystem.memory);
                 continue;
             }
-            let index: usize = input.trim().parse::<usize>().expect("Invalid command or index");
+            let index: usize = input
+                .trim()
+                .parse::<usize>()
+                .expect("Invalid command or index");
             if index >= options.len() {
                 println!("Invalid index");
                 continue;
@@ -97,7 +100,10 @@ impl InterpretorTSO {
                 self.system.save_graph(path);
                 continue;
             }
-            let index: usize = input.trim().parse::<usize>().expect("Invalid command or index");
+            let index: usize = input
+                .trim()
+                .parse::<usize>()
+                .expect("Invalid command or index");
             if index >= options.len() {
                 println!("Invalid index");
                 continue;

@@ -4,6 +4,7 @@ use std::cell::RefCell;
 use std::collections::HashSet;
 use std::fmt::Display;
 use std::rc::Rc;
+use rand::Rng;
 
 type PropagateId = String;
 
@@ -49,8 +50,14 @@ impl NodeType {
 
     pub fn to_dot(&self) -> String {
         match self {
-            Self::Instruction(instruction) => format!("instr{}", instruction.line_index.to_string()),
-            Self::Propagate(propagate) => format!("propagate{}", propagate.associated_write.line_index.to_string()),
+            Self::Instruction(instruction) => {
+                format!("T{}Xinstr{}", instruction.thread_id.to_string(), instruction.line_index.to_string())
+            }
+            Self::Propagate(propagate) => format!(
+                "T{}Xprop{}",
+                propagate.associated_write.thread_id.to_string(),
+                propagate.associated_write.line_index.to_string()
+            ),
         }
     }
 }
@@ -95,10 +102,19 @@ impl InstructionNode {
         }))
     }
 
-    // pub fn add_dependency(from: Rc<RefCell<InstructionNode>>, to: Rc<RefCell<InstructionNode>>) {
-    //     from.borrow_mut().depends_on.push(to.clone());
-    //     to.borrow_mut().depends_on_me.push(from.clone());
-    // }
+    pub fn add_dependency(from: Rc<RefCell<InstructionNode>>, to: Rc<RefCell<InstructionNode>>) {
+        if from
+            .borrow()
+            .depends_on
+            .clone()
+            .into_iter()
+            .any(|x| x.borrow().instruction.id() == to.borrow().instruction.id())
+        {
+            return;
+        }
+        from.borrow_mut().depends_on.push(to.clone());
+        to.borrow_mut().depends_on_me.push(from.clone());
+    }
 }
 
 pub struct DependencyGraph {
@@ -178,11 +194,7 @@ impl DependencyGraph {
                     }
                 });
                 for depended_node in depended_nodes {
-                    cur_node
-                        .borrow_mut()
-                        .depends_on_me
-                        .push(depended_node.clone());
-                    depended_node.borrow_mut().depends_on.push(cur_node.clone());
+                    InstructionNode::add_dependency(depended_node.clone(), cur_node.clone());
                 }
             }
             _ => {}
@@ -203,14 +215,7 @@ impl DependencyGraph {
                     }
                 });
                 for dependant_node in dependant_nodes {
-                    cur_node
-                        .borrow_mut()
-                        .depends_on
-                        .push(dependant_node.clone());
-                    dependant_node
-                        .borrow_mut()
-                        .depends_on_me
-                        .push(cur_node.clone());
+                    InstructionNode::add_dependency(cur_node.clone(), dependant_node.clone());
                 }
             }
             _ => {}
@@ -328,10 +333,7 @@ impl DependencyGraph {
             });
 
             for dependant_node in dependant_nodes {
-                dependant_node
-                    .borrow_mut()
-                    .depends_on
-                    .push(propagate_node.clone());
+                InstructionNode::add_dependency(dependant_node.clone(), propagate_node.clone());
             }
 
             // Add dependencies to other propagates
@@ -352,15 +354,26 @@ impl DependencyGraph {
             });
 
             for depended_node in depended_nodes {
-                propagate_node
-                    .borrow_mut()
-                    .depends_on
-                    .push(depended_node.clone());
+                InstructionNode::add_dependency(propagate_node.clone(), depended_node.clone());
+                // propagate_node
+                //     .borrow_mut()
+                //     .depends_on
+                //     .push(depended_node.clone());
             }
         }
     }
 
     pub fn to_dot(&self) -> String {
+        fn get_color() -> Color {
+            let mut rng = rand::thread_rng();
+            match rng.gen_range(0..=4) {
+                0 => Color::PaleGreen,
+                1 => Color::PaleTurquoise,
+                2 => Color::Red,
+                3 => Color::Blue,
+                _ => Color::Black,
+            }
+        }
         let mut output_bytes = Vec::new();
         {
             let mut writer = DotWriter::from(&mut output_bytes);
@@ -374,17 +387,19 @@ impl DependencyGraph {
             }
 
             for thread_id in threads {
+                // println!("Thread #{}", thread_id);
                 let mut cluster = digraph.cluster();
-                cluster.set_style(Style::Filled);
+                cluster.set_color(get_color());
                 cluster
                     .node_attributes()
                     .set_style(Style::Filled)
-                    .set_color(Color::White);
+                    .set_color(Color::LightGrey);
                 cluster.set_label(format!("Thread #{}", thread_id).as_str());
                 for node in &self.nodes {
                     if node.borrow().instruction.thread_id() == thread_id {
                         let node_label = node.borrow().instruction.to_dot();
                         for dependency in &node.borrow().depends_on {
+                            // println!("{} -> {}", node_label, dependency.borrow().instruction.to_dot());
                             let dependency_label = dependency.borrow().instruction.to_dot();
                             cluster.edge(node_label.as_str(), dependency_label.as_str());
                         }
@@ -392,7 +407,6 @@ impl DependencyGraph {
                 }
             }
         }
-
 
         // {
         //     let mut writer = DotWriter::from(&mut output_bytes);

@@ -208,7 +208,11 @@ impl TSO {
                 Instruction::Fence(_) => {
                     self.dependency_graph
                         .remove_node(instruction_node.clone(), None, self.is_pso);
-                }
+                },
+                // Instruction::ConditionalJump(Reference::Register(reg), label) => {
+                //     let value = self.registers.load(reg.as_str(), thread_id);
+                //
+                // },
                 _ => {
                     panic!("Instruction not supported");
                 }
