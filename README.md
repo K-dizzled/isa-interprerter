@@ -105,7 +105,7 @@ Please select an option and input the index:
 1 | Thread 1, line 1: rr2 := 28
 2 | Propagate for write (Thread 0, line 1: store REL rr2 mr1)
 Please select an option and input the index: 
-graph /Users/andrei/Documents/MCS_Lectures/weak_memory/isa_interpreter/etc/graphs/graph2.dot
+graph isa_interpreter/etc/graphs/graph2.dot
 ```
 
 ![example state 2](etc/graphs/graph2.png)
@@ -173,7 +173,7 @@ Please select an option and input the index:
 0
 0 | Thread 0, line 2: if rr1 goto L
 Please select an option and input the index: 
-graph /Users/andrei/Documents/MCS_Lectures/weak_memory/isa_interpreter/etc/graphs/graph_goto2.dot
+graph isa_interpreter/etc/graphs/graph_goto2.dot
 ```
 
 ![goto state 2](etc/graphs/graph_goto2.png)
@@ -186,7 +186,7 @@ Please select an option and input the index:
 1 | Thread 0, line 1: rr1 := 0
 2 | Thread 0, line 0: L: rr2 := 1488
 Please select an option and input the index: 
-graph /Users/andrei/Documents/MCS_Lectures/weak_memory/isa_interpreter/etc/graphs/graph_goto3.dot
+graph isa_interpreter/etc/graphs/graph_goto3.dot
 ```
 
 And we come back to the initial state: 
