@@ -39,7 +39,6 @@ dot -Tpng <dot-file-path> -o <png-file-path>
 - Add support for PSO memory subsystem.
 - Support tracing mode. 
 - Support interactive mode.
-- Support model-checking mode. 
 - Generate execution graphs. 
 
 ## 📚 Examples
